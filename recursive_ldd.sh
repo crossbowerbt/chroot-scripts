@@ -18,23 +18,29 @@ rootdir="$2"
 
 destdir=`dirname "$curfile"`
 
-# copy file
+# create destination directory
 mkdir -p "$rootdir/$destdir"
+
+# set destination directory permissions and ownership
+chown --reference="$destdir" "$rootdir/$destdir"
+chmod --reference="$destdir" "$rootdir/$destdir"
+
+# copy file
 cp -rvp "$curfile" "$rootdir/$curfile"
 
 # is symbolic link?
 if [ -L "$curfile" ]; then
 
 	origfile=`readlink -f "$curfile"`
-	$0 "$origfile" "$rootdir"
+	$0 "$origfile" "$rootdir" || true
 
-# copy libraries
-else
+# if regular file, try to copy libraries
+elif [ -f "$curfile" ]; then
 
 	libraries=`ldd "$curfile" | egrep -o '/[^ ]+'`
 
 	for library in $libraries; do
-		$0 "$library" "$rootdir"
+		$0 "$library" "$rootdir" || true
 	done
 
 fi

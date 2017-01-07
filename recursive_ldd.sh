@@ -25,17 +25,44 @@ mkdir -p "$rootdir/$destdir"
 chown --reference="$destdir" "$rootdir/$destdir"
 chmod --reference="$destdir" "$rootdir/$destdir"
 
-# copy file
-cp -rvp "$curfile" "$rootdir/$curfile"
+# if file already exists do not copy
+if [ -e "$rootdir/$curfile" ]; then
+	exit 0
+fi
+
+# is directory?
+if [ -d "$curfile" ]; then
+
+	# copy files recursively
+
+	for f in "$curfile"/.* "$curfile"/*; do
+
+		if [ "$f" != "." ] && [ "$f" != ".." ]; then
+			$0 "$f" "$rootdir" || true
+		fi
+		
+	done
 
 # is symbolic link?
-if [ -L "$curfile" ]; then
+elif [ -L "$curfile" ]; then
 
-	origfile=`readlink -f "$curfile"`
+	cp -vp "$curfile" "$rootdir/$curfile"
+
+	# get next link in chain, with canonical path
+	
+	pushd `dirname "$curfile"` > /dev/null
+	origfile=`readlink "$curfile"`
+	origfile=`realpath -s "$origfile"`
+	popd > /dev/null
+	
 	$0 "$origfile" "$rootdir" || true
 
 # if regular file, try to copy libraries
 elif [ -f "$curfile" ]; then
+
+	cp -vp "$curfile" "$rootdir/$curfile"
+
+	# get shared libraries
 
 	libraries=`ldd "$curfile" | egrep -o '/[^ ]+'`
 
